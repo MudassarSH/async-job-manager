@@ -64,7 +64,7 @@ describe("Stress Test of the whole logic", () => {
                 maxRunning = Math.max(maxRunning, running);
 
                 try {
-                    
+
                     await sleep(5, signal);
 
                     if (i >= 120 && i <= 149) {
@@ -87,6 +87,8 @@ describe("Stress Test of the whole logic", () => {
                 }
             }, "normal", timesOutMs)
         });
+        
+        const settleAll = Promise.allSettled(jobs.map(h => h.promise));
 
         for (let i = 185; i < 200; i++) jobs[i].cancel("Cancelled by the user");
 
@@ -95,11 +97,11 @@ describe("Stress Test of the whole logic", () => {
             await flushMicroTasks();
         }
 
-        vi.advanceTimersByTime(1000);
+        await vi.advanceTimersByTimeAsync(1000);
         await flushMicroTasks();
 
-        const result = await Promise.allSettled(jobs.map(h => h.promise));
 
+        const result = await settleAll;
         expect(result).toHaveLength(200);
 
         expect(maxRunning).toBeLessThanOrEqual(concurrency);

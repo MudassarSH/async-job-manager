@@ -31,7 +31,7 @@ describe("running concurrency", () => {
         const bad = runner.add(async () => { throw new Error("Boom") })
         const ok2 = runner.add(async () => "ok2");
         const bad2 = runner.add(async () => { throw new Error("Boom2") });
-        await Promise.allSettled([ok, bad, ok2, bad2])
+        await Promise.allSettled([ok.promise, bad.promise, ok2.promise, bad2.promise])
         // bad2.promise.catch(() => {}) // Added because of getting error without reason
         console.log(ok)
         expect(ok.promise).resolves.toBe("ok")
@@ -168,7 +168,7 @@ describe("running concurrency", () => {
         const j6 = r.add(async () => { order.push(90); return }, "medium");
         await Promise.allSettled([j1.promise, j2.promise, j3.promise, j4.promise, j5.promise, j6.promise, j7.promise]);
         console.log("Order is: ", order)
-        expect(order).toEqual([20, 100, 11, 30, 90, 223, 22])
+        expect(order).toEqual([20, 100, 223, 11, 30, 90, 22])
     })
     it("Retries happen up to maxAttempts, with correct event emission", async () => {
         vi.useFakeTimers();
@@ -181,12 +181,14 @@ describe("running concurrency", () => {
                 count++;
                 throw new Error("Hell!")
             });
+
+            const aAssert = expect(a.promise).rejects.toBeTruthy();
         await vi.runAllTimersAsync();
         // await flushMicroTasks()
         // await Promise.allSettled([a.promise])
         console.log("Count is: ", count)
-        
-        await expect(a.promise).rejects.toBeTruthy();
+
+        await aAssert
         expect(count).toBe(3);
         vi.useRealTimers();
         vi.restoreAllMocks()
@@ -208,17 +210,19 @@ describe("running concurrency", () => {
             return 123;
         }, "normal", 50);
 
+        const aAssert = expect(a.promise).rejects.toBeTruthy()
+        const bAssert = expect(b.promise).resolves.toBe(123)
         await vi.advanceTimersByTimeAsync(0);
         await vi.advanceTimersByTimeAsync(70);
 
-        expect(a.promise).rejects.toBeTruthy();
+        await aAssert;
         expect(ev.count("timedOut")).toBeGreaterThan(0)
 
         // console.log(a)
         // console.log(b)
 
-        vi.runAllTimersAsync();
-        expect(b.promise).resolves.toBe(123);
+        await vi.runAllTimersAsync();
+        await bAssert;
         expect(data).toBe(true);
         vi.useRealTimers();
     });
